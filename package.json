@@ -1,0 +1,17 @@
+
+{
+  "name": "starlink-daraja-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starlink M-Pesa Daraja STK Push backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

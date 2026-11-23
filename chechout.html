@@ -1,0 +1,289 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRALINK - Checkout</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: #00051a;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: url('https://postimg.cc/zHDPXbzQ')
+                no-repeat center center fixed;
+            background-size: cover;
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        .checkout {
+            width: 100%;
+            max-width: 480px;
+            padding: 25px;
+            background: rgba(0, 20, 50, 0.95);
+            border: 1px solid #00f0ff;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #008cff;
+            letter-spacing: 4px;
+            text-shadow: 0 0 12px #008cff;
+        }
+
+        .selected-package {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #00f0ff;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .selected-package h2 {
+            color: #00ff66;
+            font-size: 19px;
+        }
+
+        .price {
+            color: #008cff;
+            font-size: 25px;
+            font-weight: bold;
+        }
+
+        label {
+            display: block;
+            color: #00ff66;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #00f0ff;
+            border-radius: 6px;
+            background: #00152e;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 15px;
+        }
+
+        input:focus {
+            box-shadow: 0 0 10px #00f0ff;
+        }
+
+        .pay-button {
+            width: 100%;
+            padding: 14px;
+            background: #00f0ff;
+            color: #00051a;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .pay-button:hover {
+            background: white;
+        }
+
+        .procedure {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 8px;
+        }
+
+        .procedure h3 {
+            color: #00ff66;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
+        .procedure ol {
+            padding-left: 22px;
+            line-height: 2;
+            color: white;
+        }
+
+        .back-button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            background: transparent;
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .notice {
+            color: #b8d7e8;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-top: 12px;
+        }
+
+        @media(max-width: 400px) {
+            .checkout {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="bg-overlay"></div>
+
+<div class="checkout">
+
+    <h1>SRALINK</h1>
+
+    <div class="selected-package">
+        <h2 id="packageName">Selected Package</h2>
+        <p class="price" id="packagePrice">Price: Loading...</p>
+    </div>
+
+    <form id="paymentForm">
+
+        <label for="phone">
+            Enter Safaricom Number
+        </label>
+
+        <input
+            type="tel"
+            id="phone"
+            placeholder="e.g. 07XXXXXXXX"
+            required
+            autocomplete="tel"
+        >
+
+        <button type="submit" class="pay-button">
+            SEND M-PESA PROMPT
+        </button>
+
+        <p class="notice">
+            Enter the Safaricom number that should receive
+            the data package. An M-Pesa payment prompt
+            will be sent to this number.
+        </p>
+
+    </form>
+
+    <div class="procedure">
+
+        <h3>
+            PROCEDURE TO RECEIVE YOUR DATA PACKAGE
+        </h3>
+
+        <ol>
+            <li>Open STK</li>
+            <li>Go to M-Pesa</li>
+            <li>Select Lipa na M-Pesa</li>
+            <li>Select Buy Goods and Services</li>
+            <li>Enter Till Number</li>
+            <li>Enter Amount</li>
+            <li>Enter M-Pesa PIN on your phone</li>
+        </ol>
+
+    </div>
+
+    <button class="back-button"
+        onclick="history.back()">
+        BACK
+    </button>
+
+</div>
+
+<script>
+    const params = new URLSearchParams(
+        window.location.search
+    );
+
+    const packageId = params.get("package");
+    const packageName = params.get("name");
+
+    document.getElementById("packageName").textContent =
+        packageName || "Selected Package";
+
+    // Price must be retrieved and verified by the server.
+    document.getElementById("packagePrice").textContent =
+        "Price will be confirmed at checkout";
+
+    document.getElementById("paymentForm").addEventListener(
+        "submit", async function(event) {
+
+            event.preventDefault();
+
+            const phone = document.getElementById("phone").value.trim();
+
+            const validPhone = /^(?:\+?254|0)(?:7|1)\d{8}$/;
+
+            if (!validPhone.test(phone)) {
+                alert("Please enter a valid Safaricom phone number.");
+                return;
+            }
+
+            if (!packageId) {
+                alert("Package information is missing. Please select a package again.");
+                return;
+            }
+
+            const button = document.querySelector(".pay-button");
+            button.disabled = true;
+            button.textContent = "PLEASE WAIT...";
+
+            try {
+                const response = await fetch("/api/mpesa/stk-push", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        packageId: packageId,
+                        phone: phone
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || "Payment request failed.");
+                }
+
+                alert("Payment request submitted. Check your phone for the M-Pesa prompt.");
+
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = "SEND M-PESA PROMPT";
+            }
+        }
+    );
+</script>
+
+</body>
+</html>

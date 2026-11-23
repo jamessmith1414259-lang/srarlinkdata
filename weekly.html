@@ -2,143 +2,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRALINK - Weekly Packages</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRALINK - Weekly Packages</title>
 
-    <style>
-        body {
-            margin: 0;
-            padding: 20px 0;
-            background: #00051a;
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: white;
-        }
+<style>
+* { box-sizing: border-box; }
 
-        .bg-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: url('https://postimg.cc/zHDPXbzQ') no-repeat center center fixed;
-            background-size: cover;
-            opacity: 0.3;
-            z-index: -1;
-        }
+body {
+    margin: 0;
+    padding: 20px 0;
+    background: #00051a;
+    font-family: Arial, sans-serif;
+    color: white;
+    min-height: 100vh;
+}
 
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            width: 90%;
-            max-width: 1200px;
-            padding: 20px;
-        }
+.bg-overlay {
+    position: fixed;
+    inset: 0;
+    background: url('https://postimg.cc/zHDPXbzQ') center/cover no-repeat;
+    opacity: 0.3;
+    z-index: -1;
+}
 
-        .package-slot {
-            background: rgba(0, 20, 50, 0.8);
-            border: 1px solid #00f0ff;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            transition: transform 0.3s;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-        }
+.container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    width: 90%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
 
-        .package-slot:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 0 18px rgba(0, 240, 255, 0.5);
-        }
+.page-title {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #008cff;
+    text-shadow: 0 0 10px #008cff;
+}
 
-        .description {
-            color: #00ff66;
-            font-weight: bold;
-            font-size: 18px;
-        }
+.package-slot {
+    background: rgba(0,20,50,0.9);
+    border: 1px solid #00f0ff;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: 0.3s;
+}
 
-        .price {
-            color: #008cff;
-            font-size: 22px;
-            font-weight: bold;
-        }
+.package-slot:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 18px #00f0ff;
+}
 
-        button {
-            background: #00f0ff;
-            color: #00051a;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+.description {
+    color: #00ff66;
+    font-size: 18px;
+    font-weight: bold;
+}
 
-        button:hover {
-            background: white;
-        }
+.price {
+    color: #008cff;
+    font-size: 22px;
+    font-weight: bold;
+}
 
-        .page-title {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: #008cff;
-            font-size: 30px;
-            text-shadow: 0 0 10px #008cff;
-        }
+button {
+    background: #00f0ff;
+    color: #00051a;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
 
-        .back-button {
-            grid-column: 1 / -1;
-            text-align: center;
-        }
-    </style>
+button:hover { background: white; }
+
+.back-button {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+</style>
 </head>
 
 <body>
 
-    <div class="bg-overlay"></div>
+<div class="bg-overlay"></div>
 
-    <div class="container">
+<div class="container">
 
-        <h1 class="page-title">WEEKLY PACKAGES</h1>
+<h1 class="page-title">WEEKLY PACKAGES</h1>
 
-        <!-- Weekly Slot 1 -->
-        <div class="package-slot">
-            <p class="description">Description</p>
-            <p class="price">Price: $0.00</p>
-            <button onclick="console.log('Buy Weekly 1')">Buy Now</button>
-        </div>
+<div class="package-slot">
+    <p class="description">Description 1</p>
+    <p class="price">Price: KSh 0</p>
+    <button onclick="buyPackage('weekly1','Description 1',0)">Buy Now</button>
+</div>
 
-        <!-- Weekly Slot 2 -->
-        <div class="package-slot">
-            <p class="description">Description</p>
-            <p class="price">Price: $0.00</p>
-            <button onclick="console.log('Buy Weekly 2')">Buy Now</button>
-        </div>
+<div class="package-slot">
+    <p class="description">Description 2</p>
+    <p class="price">Price: KSh 0</p>
+    <button onclick="buyPackage('weekly2','Description 2',0)">Buy Now</button>
+</div>
 
-        <!-- Weekly Slot 3 -->
-        <div class="package-slot">
-            <p class="description">Description</p>
-            <p class="price">Price: $0.00</p>
-            <button onclick="console.log('Buy Weekly 3')">Buy Now</button>
-        </div>
+<div class="package-slot">
+    <p class="description">Description 3</p>
+    <p class="price">Price: KSh 0</p>
+    <button onclick="buyPackage('weekly3','Description 3',0)">Buy Now</button>
+</div>
 
-        <!-- Weekly Slot 4 -->
-        <div class="package-slot">
-            <p class="description">Description</p>
-            <p class="price">Price: $0.00</p>
-            <button onclick="console.log('Buy Weekly 4')">Buy Now</button>
-        </div>
+<div class="package-slot">
+    <p class="description">Description 4</p>
+    <p class="price">Price: KSh 0</p>
+    <button onclick="buyPackage('weekly4','Description 4',0)">Buy Now</button>
+</div>
 
-        <div class="back-button">
-            <button onclick="location.href='index.html'">
-                Back to Home
-            </button>
-        </div>
+<div class="back-button">
+    <button onclick="location.href='index.html'">Back to Home</button>
+</div>
 
-    </div>
+</div>
+
+<script>
+function buyPackage(id, name, price) {
+    const params = new URLSearchParams({
+        package: id,
+        name: name,
+        price: price
+    });
+
+    location.href = 'checkout.html?' + params.toString();
+}
+</script>
 
 </body>
 </html>

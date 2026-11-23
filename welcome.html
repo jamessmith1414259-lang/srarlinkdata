@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRALINK</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: #00051a;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: url('https://postimg.cc/zHDPXbzQ') no-repeat center center fixed;
+            background-size: cover;
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        h1 {
+            color: #008cff;
+            font-size: 42px;
+            letter-spacing: 5px;
+            text-shadow: 0 0 15px #008cff;
+            margin-bottom: 40px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .category {
+            background: rgba(0, 20, 50, 0.85);
+            border: 2px solid #00f0ff;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: 0.3s;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+        }
+
+        .category:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 0 25px #00f0ff;
+        }
+
+        .category h2 {
+            color: #00f0ff;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        .category button {
+            background: #008cff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 25px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .category button:hover {
+            background: #00f0ff;
+            color: #00051a;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 34px;
+            }
+
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-overlay"></div>
+
+    <h1>SRALINK</h1>
+
+    <div class="container">
+
+        <div class="category">
+            <h2>Daily Packages</h2>
+            <button onclick="location.href='daily.html'">
+                View Packages
+            </button>
+        </div>
+
+        <div class="category">
+            <h2>Weekly Packages</h2>
+            <button onclick="location.href='weekly.html'">
+                View Packages
+            </button>
+        </div>
+
+        <div class="category">
+            <h2>Monthly Packages</h2>
+            <button onclick="location.href='monthly.html'">
+                View Packages
+            </button>
+        </div>
+
+    </div>
+
+</body>
+</html>
+

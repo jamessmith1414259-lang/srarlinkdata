@@ -1,5 +1,6 @@
 
 const express = require("express");
+const path = require("path");
 
 const app = express();
 
@@ -27,6 +28,10 @@ const REQUIRED_ENV = [
   "MPESA_PASSKEY",
   "MPESA_CALLBACK_URL"
 ];
+
+// Website files are in the repository root.
+// server.js is inside the server folder.
+const WEBSITE_DIR = path.join(__dirname, "..");
 
 // ===================================
 // CORS
@@ -101,7 +106,7 @@ function getPrices() {
 }
 
 // ===================================
-// DARJA TIMESTAMP
+// DARAJA TIMESTAMP
 // ===================================
 
 function getTimestamp() {
@@ -170,7 +175,7 @@ async function getAccessToken() {
 app.get("/health", (req, res) => {
   res.json({
     success: true,
-    message: "Starlink M-Pesa backend running",
+    message: "SRALINK website and M-Pesa backend running",
     environment: MPESA_ENV
   });
 });
@@ -193,10 +198,7 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
   }
 
   try {
-    const {
-      packageId,
-      phone
-    } = req.body || {};
+    const { packageId, phone } = req.body || {};
 
     if (!packageId || !phone) {
       return res.status(400).json({
@@ -243,9 +245,7 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       });
     }
 
-    // Always retrieve the price from the server.
     const prices = getPrices();
-
     const amount = Number(prices[String(packageId)]);
 
     if (!Number.isSafeInteger(amount) || amount < 1) {
@@ -257,10 +257,7 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
 
     const token = await getAccessToken();
 
-    // BusinessShortCode must be the Safaricom-provisioned
-    // PayBill shortcode or Store/Head Office shortcode.
     const shortcode = process.env.MPESA_SHORTCODE;
-
     const timestamp = getTimestamp();
 
     const password = Buffer.from(
@@ -269,33 +266,21 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       timestamp
     ).toString("base64");
 
-    // PayBill: PartyB = shortcode.
-    // Buy Goods: PartyB = actual Till number.
     const partyB = isBuyGoods
       ? process.env.MPESA_TILL_NUMBER
       : shortcode;
 
     const payload = {
       BusinessShortCode: shortcode,
-
       Password: password,
-
       Timestamp: timestamp,
-
       TransactionType: transactionType,
-
       Amount: amount,
-
       PartyA: formattedPhone,
-
       PartyB: partyB,
-
       PhoneNumber: formattedPhone,
-
       CallBackURL: process.env.MPESA_CALLBACK_URL,
-
       AccountReference: String(packageId).slice(0, 12),
-
       TransactionDesc: "Starlink payment"
     };
 
@@ -303,12 +288,10 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       `${DARAJA_BASE}/mpesa/stkpush/v1/processrequest`,
       {
         method: "POST",
-
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-
         body: JSON.stringify(payload)
       }
     );
@@ -331,7 +314,6 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       });
     }
 
-    // Store payment temporarily for Sandbox testing.
     payments.set(data.CheckoutRequestID, {
       packageId: String(packageId),
       phone: formattedPhone,
@@ -345,13 +327,10 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
 
     return res.json({
       success: true,
-
       message:
         data.CustomerMessage ||
         "STK Push sent. Enter your M-Pesa PIN.",
-
       checkoutRequestId: data.CheckoutRequestID,
-
       merchantRequestId: data.MerchantRequestID
     });
 
@@ -381,14 +360,11 @@ app.post("/api/mpesa/callback", (req, res) => {
     }
 
     const checkoutId = callback.CheckoutRequestID;
-
     const payment = payments.get(checkoutId);
 
     if (payment) {
       payment.resultCode = Number(callback.ResultCode);
-
-      payment.resultDesc =
-        callback.ResultDesc || "";
+      payment.resultDesc = callback.ResultDesc || "";
 
       payment.status =
         Number(callback.ResultCode) === 0
@@ -441,7 +417,6 @@ app.post("/api/mpesa/callback", (req, res) => {
 app.get(
   "/api/mpesa/status/:checkoutRequestId",
   (req, res) => {
-
     const payment = payments.get(
       req.params.checkoutRequestId
     );
@@ -455,23 +430,46 @@ app.get(
 
     return res.json({
       success: true,
-
-      checkoutRequestId:
-        req.params.checkoutRequestId,
-
+      checkoutRequestId: req.params.checkoutRequestId,
       status: payment.status,
-
       packageId: payment.packageId,
-
       amount: payment.amount,
-
       resultDesc: payment.resultDesc,
-
-      mpesaReceiptNumber:
-        payment.mpesaReceiptNumber
+      mpesaReceiptNumber: payment.mpesaReceiptNumber
     });
   }
 );
+
+// ===================================
+// WEBSITE FILES
+// ===================================
+
+// Do not expose backend source or project files.
+app.use((req, res, next) => {
+  const blocked =
+    /^\/server(?:\/|$)/i.test(req.path) ||
+    /^\/(?:package(?:-lock)?\.json|\.env.*|README\.md)$/i.test(req.path);
+
+  if (blocked) {
+    return res.sendStatus(404);
+  }
+
+  next();
+});
+
+// Serve index.html and the other website pages
+// from the repository's root directory.
+app.use(express.static(WEBSITE_DIR, {
+  index: "index.html",
+  dotfiles: "ignore"
+}));
+
+// Friendly message if the homepage is missing.
+app.get("/", (req, res) => {
+  res.status(404).send(
+    "SRALINK homepage not found. Please check that index.html exists in the repository root."
+  );
+});
 
 // ===================================
 // START SERVER
@@ -479,10 +477,14 @@ app.get(
 
 app.listen(PORT, () => {
   console.log(
-    `Starlink Daraja backend running on port ${PORT}`
+    `SRALINK website and Daraja backend running on port ${PORT}`
   );
 
   console.log(
     `M-Pesa environment: ${MPESA_ENV}`
+  );
+
+  console.log(
+    `Website directory: ${WEBSITE_DIR}`
   );
 });

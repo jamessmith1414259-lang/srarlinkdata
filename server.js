@@ -29,9 +29,8 @@ const REQUIRED_ENV = [
   "MPESA_CALLBACK_URL"
 ];
 
-// Website files are in the repository root.
-// server.js is inside the server folder.
-const WEBSITE_DIR = path.join(__dirname, "..");
+// Website files and server.js are in the repository root.
+const WEBSITE_DIR = __dirname;
 
 // ===================================
 // CORS
@@ -448,7 +447,7 @@ app.get(
 app.use((req, res, next) => {
   const blocked =
     /^\/server(?:\/|$)/i.test(req.path) ||
-    /^\/(?:package(?:-lock)?\.json|\.env.*|README\.md)$/i.test(req.path);
+    /^\/(?:server\.js|package(?:-lock)?\.json|\.env.*|README\.md)$/i.test(req.path);
 
   if (blocked) {
     return res.sendStatus(404);
@@ -457,8 +456,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve index.html and the other website pages
-// from the repository's root directory.
+// Serve website pages from the repository root.
 app.use(express.static(WEBSITE_DIR, {
   index: "index.html",
   dotfiles: "ignore"

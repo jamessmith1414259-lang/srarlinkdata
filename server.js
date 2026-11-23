@@ -5,6 +5,10 @@ const app = express();
 
 app.use(express.json({ limit: "100kb" }));
 
+// ===================================
+// CONFIGURATION
+// ===================================
+
 const PORT = process.env.PORT || 10000;
 
 const MPESA_ENV = (process.env.MPESA_ENV || "sandbox").toLowerCase();
@@ -14,17 +18,55 @@ const DARAJA_BASE =
     ? "https://api.safaricom.co.ke"
     : "https://sandbox.safaricom.co.ke";
 
-// Temporary payment storage for Sandbox testing.
-// Replace with a persistent database before going live.
 const payments = new Map();
 
-const requiredEnv = [
+const REQUIRED_ENV = [
   "MPESA_CONSUMER_KEY",
   "MPESA_CONSUMER_SECRET",
   "MPESA_SHORTCODE",
   "MPESA_PASSKEY",
   "MPESA_CALLBACK_URL"
 ];
+
+// ===================================
+// CORS
+// ===================================
+
+const allowedOrigins = (
+  process.env.FRONTEND_ORIGIN || ""
+)
+  .split(",")
+  .map(x => x.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+// ===================================
+// PHONE NUMBER VALIDATION
+// ===================================
 
 function normalizePhone(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -44,13 +86,23 @@ function normalizePhone(phone) {
   return null;
 }
 
+// ===================================
+// PACKAGE PRICES
+// ===================================
+
 function getPrices() {
   try {
-    return JSON.parse(process.env.PACKAGES_JSON || "{}");
+    return JSON.parse(
+      process.env.PACKAGES_JSON || "{}"
+    );
   } catch {
-    throw new Error("Invalid PACKAGES_JSON configuration");
+    throw new Error("Invalid PACKAGES_JSON");
   }
 }
+
+// ===================================
+// DARJA TIMESTAMP
+// ===================================
 
 function getTimestamp() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -66,9 +118,9 @@ function getTimestamp() {
 
   const values = {};
 
-  for (const part of parts) {
+  parts.forEach(part => {
     values[part.type] = part.value;
-  }
+  });
 
   return (
     values.year +
@@ -79,6 +131,10 @@ function getTimestamp() {
     values.second
   );
 }
+
+// ===================================
+// GET DARAJA ACCESS TOKEN
+// ===================================
 
 async function getAccessToken() {
   const credentials = Buffer.from(
@@ -99,42 +155,82 @@ async function getAccessToken() {
   const data = await response.json();
 
   if (!response.ok || !data.access_token) {
-    throw new Error("Daraja authentication failed");
+    throw new Error(
+      data.errorMessage || "Daraja authentication failed"
+    );
   }
 
   return data.access_token;
 }
 
-// Health check
+// ===================================
+// HEALTH CHECK
+// ===================================
+
 app.get("/health", (req, res) => {
   res.json({
     success: true,
-    message: "Starlink M-Pesa backend is running",
+    message: "Starlink M-Pesa backend running",
     environment: MPESA_ENV
   });
 });
 
-// Initiate STK Push
+// ===================================
+// INITIATE STK PUSH
+// ===================================
+
 app.post("/api/mpesa/stk-push", async (req, res) => {
-  const missing = requiredEnv.filter(
+  const missing = REQUIRED_ENV.filter(
     key => !process.env[key]
   );
 
   if (missing.length) {
     return res.status(503).json({
       success: false,
-      error: "Missing payment configuration",
+      error: "Missing environment configuration",
       missing
     });
   }
 
   try {
-    const { packageId, phone } = req.body || {};
+    const {
+      packageId,
+      phone
+    } = req.body || {};
 
     if (!packageId || !phone) {
       return res.status(400).json({
         success: false,
         error: "Package ID and phone number are required"
+      });
+    }
+
+    const transactionType =
+      process.env.MPESA_TRANSACTION_TYPE ||
+      "CustomerPayBillOnline";
+
+    const isBuyGoods =
+      transactionType === "CustomerBuyGoodsOnline";
+
+    if (
+      ![
+        "CustomerPayBillOnline",
+        "CustomerBuyGoodsOnline"
+      ].includes(transactionType)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported M-Pesa transaction type"
+      });
+    }
+
+    if (
+      isBuyGoods &&
+      !process.env.MPESA_TILL_NUMBER
+    ) {
+      return res.status(503).json({
+        success: false,
+        error: "MPESA_TILL_NUMBER is required for Buy Goods"
       });
     }
 
@@ -147,9 +243,9 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       });
     }
 
-    // The amount is obtained from server configuration,
-    // never trusted from the customer's browser.
+    // Always retrieve the price from the server.
     const prices = getPrices();
+
     const amount = Number(prices[String(packageId)]);
 
     if (!Number.isSafeInteger(amount) || amount < 1) {
@@ -161,7 +257,10 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
 
     const token = await getAccessToken();
 
+    // BusinessShortCode must be the Safaricom-provisioned
+    // PayBill shortcode or Store/Head Office shortcode.
     const shortcode = process.env.MPESA_SHORTCODE;
+
     const timestamp = getTimestamp();
 
     const password = Buffer.from(
@@ -170,30 +269,46 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       timestamp
     ).toString("base64");
 
+    // PayBill: PartyB = shortcode.
+    // Buy Goods: PartyB = actual Till number.
+    const partyB = isBuyGoods
+      ? process.env.MPESA_TILL_NUMBER
+      : shortcode;
+
     const payload = {
       BusinessShortCode: shortcode,
+
       Password: password,
+
       Timestamp: timestamp,
-      TransactionType:
-        process.env.MPESA_TRANSACTION_TYPE ||
-        "CustomerPayBillOnline",
+
+      TransactionType: transactionType,
+
       Amount: amount,
+
       PartyA: formattedPhone,
-      PartyB: shortcode,
+
+      PartyB: partyB,
+
       PhoneNumber: formattedPhone,
+
       CallBackURL: process.env.MPESA_CALLBACK_URL,
+
       AccountReference: String(packageId).slice(0, 12),
-      TransactionDesc: "Starlink subscription"
+
+      TransactionDesc: "Starlink payment"
     };
 
     const response = await fetch(
       `${DARAJA_BASE}/mpesa/stkpush/v1/processrequest`,
       {
         method: "POST",
+
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
+
         body: JSON.stringify(payload)
       }
     );
@@ -205,15 +320,18 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
       data.ResponseCode !== "0" ||
       !data.CheckoutRequestID
     ) {
+      console.error("Daraja response:", data);
+
       return res.status(502).json({
         success: false,
         error:
           data.errorMessage ||
           data.ResponseDescription ||
-          "STK Push request failed"
+          "STK Push failed"
       });
     }
 
+    // Store payment temporarily for Sandbox testing.
     payments.set(data.CheckoutRequestID, {
       packageId: String(packageId),
       phone: formattedPhone,
@@ -227,10 +345,13 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
 
     return res.json({
       success: true,
+
       message:
         data.CustomerMessage ||
         "STK Push sent. Enter your M-Pesa PIN.",
+
       checkoutRequestId: data.CheckoutRequestID,
+
       merchantRequestId: data.MerchantRequestID
     });
 
@@ -239,12 +360,15 @@ app.post("/api/mpesa/stk-push", async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      error: "Unable to initiate payment"
+      error: "Unable to initiate M-Pesa payment"
     });
   }
 });
 
-// Safaricom payment callback
+// ===================================
+// SAFARICOM PAYMENT CALLBACK
+// ===================================
+
 app.post("/api/mpesa/callback", (req, res) => {
   try {
     const callback = req.body?.Body?.stkCallback;
@@ -257,11 +381,14 @@ app.post("/api/mpesa/callback", (req, res) => {
     }
 
     const checkoutId = callback.CheckoutRequestID;
+
     const payment = payments.get(checkoutId);
 
     if (payment) {
       payment.resultCode = Number(callback.ResultCode);
-      payment.resultDesc = callback.ResultDesc || "";
+
+      payment.resultDesc =
+        callback.ResultDesc || "";
 
       payment.status =
         Number(callback.ResultCode) === 0
@@ -272,7 +399,9 @@ app.post("/api/mpesa/callback", (req, res) => {
         callback.CallbackMetadata?.Item || [];
 
       function getValue(name) {
-        return items.find(item => item.Name === name)?.Value;
+        return items.find(
+          item => item.Name === name
+        )?.Value;
       }
 
       payment.mpesaReceiptNumber =
@@ -284,7 +413,8 @@ app.post("/api/mpesa/callback", (req, res) => {
       payment.paidPhone =
         getValue("PhoneNumber") || null;
 
-      payment.completedAt = new Date().toISOString();
+      payment.completedAt =
+        new Date().toISOString();
 
       payments.set(checkoutId, payment);
     }
@@ -304,10 +434,14 @@ app.post("/api/mpesa/callback", (req, res) => {
   }
 });
 
-// Check payment status
+// ===================================
+// CHECK PAYMENT STATUS
+// ===================================
+
 app.get(
   "/api/mpesa/status/:checkoutRequestId",
   (req, res) => {
+
     const payment = payments.get(
       req.params.checkoutRequestId
     );
@@ -321,21 +455,34 @@ app.get(
 
     return res.json({
       success: true,
+
       checkoutRequestId:
         req.params.checkoutRequestId,
+
       status: payment.status,
+
       packageId: payment.packageId,
+
       amount: payment.amount,
+
       resultDesc: payment.resultDesc,
+
       mpesaReceiptNumber:
         payment.mpesaReceiptNumber
     });
   }
 );
 
-// Start server
+// ===================================
+// START SERVER
+// ===================================
+
 app.listen(PORT, () => {
   console.log(
     `Starlink Daraja backend running on port ${PORT}`
+  );
+
+  console.log(
+    `M-Pesa environment: ${MPESA_ENV}`
   );
 });

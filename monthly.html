@@ -1,26 +1,136 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRALINK - Monthly Packages</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 20px 0;
+    background: #00051a;
+    font-family: Arial, sans-serif;
+    color: white;
+    min-height: 100vh;
+}
+
+.bg-overlay {
+    position: fixed;
+    inset: 0;
+    background: url('https://postimg.cc/zHDPXbzQ') center/cover no-repeat;
+    opacity: 0.3;
+    z-index: -1;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    width: 90%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.page-title {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #008cff;
+    text-shadow: 0 0 10px #008cff;
+}
+
+.package-slot {
+    background: rgba(0,20,50,0.9);
+    border: 1px solid #00f0ff;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: 0.3s;
+}
+
+.package-slot:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 18px #00f0ff;
+}
+
+.description {
+    color: #00ff66;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.price {
+    color: #008cff;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+button {
+    background: #00f0ff;
+    color: #00051a;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover { background: white; }
+
+.back-button {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="bg-overlay"></div>
+
+<div class="container">
+
 <h1 class="page-title">MONTHLY PACKAGES</h1>
 
 <div class="package-slot">
     <p class="description">45Gb + YouTube</p>
-    <p class="price">Price: KSh 500</p>
-    <button onclick="buyPackage('monthly1', '45Gb + YouTube', 500)">
-        Buy Now
-    </button>
+    <p class="price">Price: KSh:500</p>
+    <button onclick="buyPackage('monthly1','Description 1',500)">Buy Now</button>
 </div>
 
 <div class="package-slot">
     <p class="description">70Gb + YouTube + WhatsApp</p>
-    <p class="price">Price: KSh 1,000</p>
-    <button onclick="buyPackage('monthly2', '70Gb + YouTube + WhatsApp', 1000)">
-        Buy Now
-    </button>
+    <p class="price">Price: KSh:1000</p>
+    <button onclick="buyPackage('monthly2','Description 2',1000)">Buy Now</button>
 </div>
 
 <div class="package-slot">
     <p class="description">135Gb + YouTube + WhatsApp</p>
-    <p class="price">Price: KSh 1,500</p>
-    <button onclick="buyPackage('monthly3', '135Gb + YouTube + WhatsApp', 1500)">
-        Buy Now
-    </button>
+    <p class="price">Price: KSh:1500</p>
+    <button onclick="buyPackage('monthly3','Description 3',1500)">Buy Now</button>
 </div>
+
+<div class="back-button">
+    <button onclick="location.href='index.html'">Back to Home</button>
+</div>
+
+</div>
+
+<script>
+function buyPackage(id, name, price) {
+    const params = new URLSearchParams({
+        package: id,
+        name: name,
+        price: price
+    });
+
+    location.href = 'checkout.html?' + params.toString();
+}
+</script>
+
+</body>
+</html>

@@ -66,7 +66,7 @@ h1 {
 
 .price {
     color: #008cff;
-    font-size: 25px;
+    font-size: 20px;
     font-weight: bold;
 }
 
@@ -157,8 +157,8 @@ input:focus {
     color: #00ff66;
     font-weight: bold;
     line-height: 1.5;
+    overflow-wrap: anywhere;
 }
-
 </style>
 </head>
 
@@ -175,7 +175,7 @@ input:focus {
         <h2 id="packageName">Selected Package</h2>
 
         <p class="price" id="packagePrice">
-            Loading price...
+            Loading package...
         </p>
 
     </div>
@@ -191,6 +191,7 @@ input:focus {
             id="phone"
             placeholder="07XXXXXXXX or 2547XXXXXXXX"
             autocomplete="tel"
+            inputmode="tel"
             required
         >
 
@@ -205,12 +206,12 @@ input:focus {
         <p class="notice">
             Enter the Safaricom number that should receive
             the data package and M-Pesa payment prompt.
-            Confirm the details before proceeding.
+            Confirm the number before proceeding.
         </p>
 
     </form>
 
-    <p id="status"></p>
+    <p id="status" aria-live="polite"></p>
 
     <div class="procedure">
 
@@ -219,13 +220,13 @@ input:focus {
         </h3>
 
         <ol>
-            <li>Open STK</li>
-            <li>Go to M-Pesa</li>
-            <li>Select Lipa na M-Pesa</li>
-            <li>Select Buy Goods and Services</li>
-            <li>Enter Till Number</li>
-            <li>Enter Amount</li>
-            <li>Enter M-Pesa PIN on your phone</li>
+            <li>Select your data package.</li>
+            <li>Enter your Safaricom number.</li>
+            <li>Click SEND M-PESA PROMPT.</li>
+            <li>Wait for the M-Pesa STK prompt on your phone.</li>
+            <li>Check the payment amount.</li>
+            <li>Enter your M-Pesa PIN to authorize payment.</li>
+            <li>Wait for payment confirmation.</li>
         </ol>
 
     </div>
@@ -242,32 +243,82 @@ input:focus {
 
 <script>
 
-// OFFICIAL PACKAGE CATALOGUE
-// Replace these sample descriptions and prices
-// with your actual package details.
+// ===================================
+// RENDER BACKEND
+// ===================================
+
+const API_BASE =
+    "https://srarlinkdata.onrender.com";
+
+const STK_PUSH_URL =
+    API_BASE + "/api/mpesa/stk-push";
+
+// ===================================
+// PACKAGE CATALOGUE
+// Package IDs must match PACKAGES_JSON
+// in Render.
+// Prices are controlled by the backend.
+// ===================================
 
 const packages = {
 
-    daily1:  {name: "Daily Package 1", price: 0},
-    daily2:  {name: "Daily Package 2", price: 0},
-    daily3:  {name: "Daily Package 3", price: 0},
-    daily4:  {name: "Daily Package 4", price: 0},
-    daily5:  {name: "Daily Package 5", price: 0},
-    daily6:  {name: "Daily Package 6", price: 0},
+    daily1: {
+        name: "Daily Package 1"
+    },
 
-    weekly1: {name: "Weekly Package 1", price: 0},
-    weekly2: {name: "Weekly Package 2", price: 0},
-    weekly3: {name: "Weekly Package 3", price: 0},
-    weekly4: {name: "Weekly Package 4", price: 0},
+    daily2: {
+        name: "Daily Package 2"
+    },
 
-    monthly1: {name: "Monthly Package 1", price: 0},
-    monthly2: {name: "Monthly Package 2", price: 0},
-    monthly3: {name: "Monthly Package 3", price: 0}
+    daily3: {
+        name: "Daily Package 3"
+    },
+
+    daily4: {
+        name: "Daily Package 4"
+    },
+
+    daily5: {
+        name: "Daily Package 5"
+    },
+
+    daily6: {
+        name: "Daily Package 6"
+    },
+
+    weekly1: {
+        name: "Weekly Package 1"
+    },
+
+    weekly2: {
+        name: "Weekly Package 2"
+    },
+
+    weekly3: {
+        name: "Weekly Package 3"
+    },
+
+    weekly4: {
+        name: "Weekly Package 4"
+    },
+
+    monthly1: {
+        name: "Monthly Package 1"
+    },
+
+    monthly2: {
+        name: "Monthly Package 2"
+    },
+
+    monthly3: {
+        name: "Monthly Package 3"
+    }
 
 };
 
-
+// ===================================
 // GET SELECTED PACKAGE
+// ===================================
 
 const params = new URLSearchParams(
     window.location.search
@@ -277,31 +328,41 @@ const packageId = params.get("package");
 
 const selectedPackage = packages[packageId];
 
-const packageName = document.getElementById("packageName");
-const packagePrice = document.getElementById("packagePrice");
-const payButton = document.getElementById("payButton");
-const statusMessage = document.getElementById("status");
+const packageName =
+    document.getElementById("packageName");
 
+const packagePrice =
+    document.getElementById("packagePrice");
 
-// DISPLAY PACKAGE INFORMATION
+const payButton =
+    document.getElementById("payButton");
+
+const statusMessage =
+    document.getElementById("status");
+
+const paymentForm =
+    document.getElementById("paymentForm");
+
+// ===================================
+// DISPLAY PACKAGE
+// ===================================
 
 if (selectedPackage) {
 
-    packageName.textContent = selectedPackage.name;
+    packageName.textContent =
+        selectedPackage.name;
 
     packagePrice.textContent =
-        "Price: KSh " + selectedPackage.price.toFixed(2);
-
-    if (selectedPackage.price <= 0) {
-        payButton.disabled = true;
-        statusMessage.textContent =
-            "This package needs a valid price before checkout.";
-    }
+        "Price confirmed securely at checkout";
 
 } else {
 
-    packageName.textContent = "Package Not Found";
-    packagePrice.textContent = "Unavailable";
+    packageName.textContent =
+        "Package Not Found";
+
+    packagePrice.textContent =
+        "Unavailable";
+
     payButton.disabled = true;
 
     statusMessage.textContent =
@@ -309,40 +370,49 @@ if (selectedPackage) {
 
 }
 
-
+// ===================================
 // PHONE NUMBER VALIDATION
+// ===================================
 
 function formatPhone(phone) {
 
-    let number = phone.replace(/[\s-]/g, "");
+    let number = String(phone || "")
+        .replace(/[\s-]/g, "");
 
     if (number.startsWith("+")) {
         number = number.substring(1);
     }
 
-    if (number.startsWith("0")) {
+    if (/^0[17]\d{8}$/.test(number)) {
         number = "254" + number.substring(1);
     }
 
-    if (/^254[71]\d{8}$/.test(number)) {
+    if (/^[17]\d{8}$/.test(number)) {
+        number = "254" + number;
+    }
+
+    if (/^254[17]\d{8}$/.test(number)) {
         return number;
     }
 
     return null;
 }
 
+// ===================================
+// SEND M-PESA STK PUSH
+// ===================================
 
-// PAYMENT REQUEST
-
-document.getElementById("paymentForm").addEventListener(
+paymentForm.addEventListener(
     "submit",
     async function(event) {
 
         event.preventDefault();
 
-        if (!selectedPackage || selectedPackage.price <= 0) {
+        if (!selectedPackage) {
+
             statusMessage.textContent =
-                "This package is not available for purchase.";
+                "Please select a valid package.";
+
             return;
         }
 
@@ -352,21 +422,25 @@ document.getElementById("paymentForm").addEventListener(
         const phone = formatPhone(phoneInput);
 
         if (!phone) {
+
             statusMessage.textContent =
-                "Please enter a valid Safaricom number.";
+                "Please enter a valid Kenyan Safaricom number.";
+
             return;
         }
 
         payButton.disabled = true;
-        payButton.textContent = "PROCESSING...";
+
+        payButton.textContent =
+            "PROCESSING...";
 
         statusMessage.textContent =
-            "Submitting your payment request...";
+            "Connecting to M-Pesa. Please wait...";
 
         try {
 
             const response = await fetch(
-                "/api/mpesa/stk-push",
+                STK_PUSH_URL,
                 {
                     method: "POST",
 
@@ -377,32 +451,62 @@ document.getElementById("paymentForm").addEventListener(
                     body: JSON.stringify({
 
                         packageId: packageId,
+
                         phone: phone
 
                     })
                 }
             );
 
-            const result = await response.json();
+            let result;
 
-            if (!response.ok) {
+            try {
+
+                result = await response.json();
+
+            } catch {
+
                 throw new Error(
-                    result.message || "Payment request failed."
+                    "The payment server returned an invalid response."
                 );
+
+            }
+
+            if (!response.ok || !result.success) {
+
+                throw new Error(
+                    result.error ||
+                    "Unable to initiate payment. Please try again."
+                );
+
             }
 
             statusMessage.textContent =
-                "Payment request submitted. Check your phone for the M-Pesa prompt.";
+                result.message ||
+                "STK Push submitted. Check your phone.";
+
+            if (result.checkoutRequestId) {
+
+                statusMessage.textContent +=
+                    " Payment reference: " +
+                    result.checkoutRequestId;
+
+            }
 
         } catch (error) {
 
+            console.error("Payment error:", error);
+
             statusMessage.textContent =
-                error.message;
+                error.message ||
+                "Connection error. Please try again.";
 
         } finally {
 
             payButton.disabled = false;
-            payButton.textContent = "SEND M-PESA PROMPT";
+
+            payButton.textContent =
+                "SEND M-PESA PROMPT";
 
         }
 

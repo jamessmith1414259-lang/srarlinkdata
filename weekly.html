@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRALINK - Weekly Packages</title>
+<title>STARLINK - Weekly Packages</title>
 
 <style>
 * { box-sizing: border-box; }
@@ -21,7 +20,7 @@ body {
 .bg-overlay {
     position: fixed;
     inset: 0;
-    background: url('https://postimg.cc/zHDPXbzQ') center/cover no-repeat;
+    background: url('https://postimg.cc') center/cover no-repeat;
     opacity: 0.3;
     z-index: -1;
 }
@@ -97,27 +96,27 @@ button:hover { background: white; }
 <h1 class="page-title">WEEKLY PACKAGES</h1>
 
 <div class="package-slot">
-    <p class="description">3Gb</p>
+    <p class="description">3Gb Weekly</p>
     <p class="price">Price: KSh:55</p>
-    <button onclick="buyPackage('weekly1','Description 1',0)">Buy Now</button>
+    <button onclick="buyPackage('weekly1', '3Gb Weekly', 55)">Buy Now</button>
 </div>
 
 <div class="package-slot">
-    <p class="description">10Gb+youtube</p>
+    <p class="description">10Gb+youtube Weekly</p>
     <p class="price">Price: KSh:150</p>
-    <button onclick="buyPackage('weekly2','Description 2',0)">Buy Now</button>
+    <button onclick="buyPackage('weekly2', '10Gb+youtube Weekly', 150)">Buy Now</button>
 </div>
 
 <div class="package-slot">
-    <p class="description">20Gb+youtube</p>
+    <p class="description">20Gb+youtube Weekly</p>
     <p class="price">Price: KSh:250</p>
-    <button onclick="buyPackage('weekly3','Description 3',0)">Buy Now</button>
+    <button onclick="buyPackage('weekly3', '20Gb+youtube Weekly', 250)">Buy Now</button>
 </div>
 
 <div class="package-slot">
-    <p class="description">30Gb+youtube</p>
+    <p class="description">30Gb+youtube Weekly</p>
     <p class="price">Price: KSh:399</p>
-    <button onclick="buyPackage('weekly4','Description 4',0)">Buy Now</button>
+    <button onclick="buyPackage('weekly4', '30Gb+youtube Weekly', 399)">Buy Now</button>
 </div>
 
 <div class="back-button">
@@ -130,7 +129,7 @@ button:hover { background: white; }
 function buyPackage(id, name, price) {
     const params = new URLSearchParams({
         package: id,
-        name: name,
+        plan: name,
         price: price
     });
 

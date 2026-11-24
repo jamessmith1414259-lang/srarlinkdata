@@ -1,130 +1,122 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRALINK</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STARLINK DATA SOLUTION</title>
+<style>
+* { box-sizing: border-box; }
 
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            background: #00051a;
-            font-family: Arial, sans-serif;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
+body {
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    color: white;
+    background: url('bg.png') center center / cover no-repeat fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
 
-        .bg-overlay {
-            position: fixed;
-            inset: 0;
-            background: url('https://postimg.cc/zHDPXbzQ') no-repeat center center fixed;
-            background-size: cover;
-            opacity: 0.3;
-            z-index: -1;
-        }
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 8, 28, 0.35);
+    z-index: -1;
+}
 
-        h1 {
-            color: #008cff;
-            font-size: 42px;
-            letter-spacing: 5px;
-            text-shadow: 0 0 15px #008cff;
-            margin-bottom: 40px;
-        }
+.hero {
+    text-align: center;
+    background: rgba(0, 18, 48, 0.78);
+    backdrop-filter: blur(6px);
+    border: 1px solid #00f0ff;
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
+    border-radius: 16px;
+    padding: 36px 28px;
+    max-width: 720px;
+    width: 95%;
+}
 
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 25px;
-            width: 100%;
-            max-width: 1000px;
-        }
+h1 {
+    margin: 0 0 10px;
+    color: #00f0ff;
+    text-shadow: 0 0 12px #008cff;
+    font-size: 32px;
+}
 
-        .category {
-            background: rgba(0, 20, 50, 0.85);
-            border: 2px solid #00f0ff;
-            border-radius: 15px;
-            padding: 40px 20px;
-            text-align: center;
-            transition: 0.3s;
-            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
-        }
+p {
+    color: #e2e8f0;
+    font-size: 16px;
+    margin-bottom: 28px;
+}
 
-        .category:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 0 25px #00f0ff;
-        }
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 18px;
+}
 
-        .category h2 {
-            color: #00f0ff;
-            font-size: 22px;
-            margin-bottom: 20px;
-        }
+.menu-card {
+    background: rgba(0, 30, 75, 0.85);
+    border: 1px solid #00f0ff;
+    border-radius: 12px;
+    padding: 22px 16px;
+    transition: 0.3s;
+}
 
-        .category button {
-            background: #008cff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 12px 25px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-        }
+.menu-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 18px #00f0ff;
+}
 
-        .category button:hover {
-            background: #00f0ff;
-            color: #00051a;
-        }
+.menu-card h2 {
+    margin: 0 0 14px;
+    color: #00ff66;
+    font-size: 20px;
+}
 
-        @media (max-width: 600px) {
-            h1 {
-                font-size: 34px;
-            }
+button {
+    background: #00f0ff;
+    color: #00051a;
+    border: none;
+    padding: 11px 22px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+    width: 100%;
+}
 
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+button:hover { background: #ffffff; }
+</style>
 </head>
-
 <body>
 
-    <div class="bg-overlay"></div>
+<div class="overlay"></div>
 
-    <h1>SRALINK</h1>
+<div class="hero">
+    <h1>STARLINK DATA SOLUTION</h1>
+    <p>Choose your preferred data bundle category below for instant M-Pesa activation</p>
 
-    <div class="container">
-
-        <div class="category">
-            <h2>Daily Packages</h2>
-            <button onclick="location.href='daily.html'">
-                View Packages
-            </button>
+    <div class="menu-grid">
+        <div class="menu-card">
+            <h2>DAILY PLANS</h2>
+            <button onclick="location.href='daily.html'">View Daily</button>
         </div>
 
-        <div class="category">
-            <h2>Weekly Packages</h2>
-            <button onclick="location.href='weekly.html'">
-                View Packages
-            </button>
+        <div class="menu-card">
+            <h2>WEEKLY PLANS</h2>
+            <button onclick="location.href='weekly.html'">View Weekly</button>
         </div>
 
-        <div class="category">
-            <h2>Monthly Packages</h2>
-            <button onclick="location.href='monthly.html'">
-                View Packages
-            </button>
+        <div class="menu-card">
+            <h2>MONTHLY PLANS</h2>
+            <button onclick="location.href='monthly.html'">View Monthly</button>
         </div>
-
     </div>
+</div>
 
 </body>
 </html>
-

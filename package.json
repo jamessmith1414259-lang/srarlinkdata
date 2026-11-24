@@ -1,17 +1,17 @@
-
 {
-  "name": "starlink-daraja-backend",
+  "name": "srarlinkdata",
   "version": "1.0.0",
-  "private": true,
-  "description": "Starlink M-Pesa Daraja STK Push backend",
+  "description": "Starlink Data Bundles with M-Pesa Daraja Integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": ">=20"
-  },
   "dependencies": {
-    "express": "^5.1.0"
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

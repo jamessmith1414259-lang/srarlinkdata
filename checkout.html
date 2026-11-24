@@ -1,340 +1,204 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRALINK - Checkout</title>
-
-<style>
-* { box-sizing: border-box; }
-
-body {
-    margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-    background: #00051a;
-    font-family: Arial, sans-serif;
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.bg-overlay {
-    position: fixed;
-    inset: 0;
-    background: url('https://postimg.cc/zHDPXbzQ') center/cover no-repeat;
-    opacity: 0.3;
-    z-index: -1;
-}
-
-.checkout {
-    width: 100%;
-    max-width: 480px;
-    padding: 25px;
-    background: rgba(0,20,50,0.95);
-    border: 1px solid #00f0ff;
-    border-radius: 15px;
-    box-shadow: 0 0 20px rgba(0,240,255,0.3);
-}
-
-h1 {
-    text-align: center;
-    color: #008cff;
-    letter-spacing: 5px;
-    text-shadow: 0 0 12px #008cff;
-}
-
-.selected-package {
-    text-align: center;
-    padding: 15px;
-    border: 1px solid #00f0ff;
-    border-radius: 10px;
-    margin-bottom: 25px;
-    background: rgba(0,10,30,0.5);
-}
-
-.selected-package h2 {
-    color: #00ff66;
-    font-size: 19px;
-}
-
-.price {
-    color: #008cff;
-    font-size: 25px;
-    font-weight: bold;
-}
-
-label {
-    display: block;
-    color: #00ff66;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-input {
-    width: 100%;
-    padding: 13px;
-    border: 1px solid #00f0ff;
-    border-radius: 6px;
-    background: #00152e;
-    color: white;
-    font-size: 16px;
-    outline: none;
-    margin-bottom: 15px;
-}
-
-input:focus {
-    box-shadow: 0 0 10px #00f0ff;
-}
-
-.pay-button {
-    width: 100%;
-    padding: 14px;
-    background: #00f0ff;
-    color: #00051a;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-.pay-button:hover { background: white; }
-
-.pay-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.procedure {
-    margin-top: 30px;
-    padding: 15px;
-    background: rgba(0,0,0,0.25);
-    border-radius: 8px;
-}
-
-.procedure h3 {
-    color: #00ff66;
-    font-weight: bold;
-    line-height: 1.5;
-}
-
-.procedure ol {
-    padding-left: 22px;
-    line-height: 2;
-    color: white;
-}
-
-.back-button {
-    width: 100%;
-    margin-top: 20px;
-    padding: 12px;
-    background: transparent;
-    color: #00f0ff;
-    border: 1px solid #00f0ff;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.notice {
-    color: #b8d7e8;
-    font-size: 12px;
-    line-height: 1.5;
-    margin-top: 12px;
-}
-
-#status {
-    text-align: center;
-    margin-top: 15px;
-    color: #00ff66;
-    font-weight: bold;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout - Starlink Data</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 28px;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    h2 { margin-top: 0; text-align: center; color: #38bdf8; }
+    .summary {
+      background: #0f172a;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #334155;
+    }
+    .summary p { margin: 6px 0; display: flex; justify-content: space-between; }
+    label { display: block; margin-bottom: 6px; font-size: 14px; color: #cbd5e1; }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      display: none;
+    }
+    .status.info { display: block; background: #1e3a8a; color: #bfdbfe; }
+    .status.success { display: block; background: #14532d; color: #bbf7d0; }
+    .status.error { display: block; background: #7f1d1d; color: #fecaca; }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
 </head>
-
 <body>
-<div class="bg-overlay"></div>
 
-<div class="checkout">
-    <h1>SRALINK</h1>
+  <div class="card">
+    <h2>M-Pesa Checkout</h2>
 
-    <div class="selected-package">
-        <h2 id="packageName">Loading package...</h2>
-        <p class="price" id="packagePrice">Loading price...</p>
+    <div class="summary">
+      <p><span>Selected Plan:</span> <strong id="displayPlan">Standard Bundle</strong></p>
+      <p><span>Amount to Pay:</span> <strong>KES <span id="displayAmount">0</span></strong></p>
     </div>
 
-    <form id="paymentForm">
-        <label for="phone">Safaricom Number</label>
+    <form id="checkoutForm">
+      <label for="phone">M-Pesa Phone Number</label>
+      <input
+        type="tel"
+        id="phone"
+        placeholder="e.g. 0712345678"
+        required
+      />
 
-        <input
-            type="tel"
-            id="phone"
-            placeholder="07XXXXXXXX or 2547XXXXXXXX"
-            autocomplete="tel"
-            inputmode="tel"
-            required
-        >
+      <label for="amount">Amount (KES)</label>
+      <input
+        type="number"
+        id="amount"
+        min="1"
+        required
+      />
 
-        <button type="submit" class="pay-button" id="payButton">
-            SEND M-PESA PROMPT
-        </button>
-
-        <p class="notice">
-            Enter the Safaricom number that should receive the
-            payment prompt. Confirm the number before proceeding.
-        </p>
+      <button type="submit" id="payBtn">Pay Now via M-Pesa</button>
     </form>
 
-    <p id="status" aria-live="polite"></p>
+    <div id="statusBox" class="status"></div>
+    <a href="index.html" class="back-link">← Back to Plans</a>
+  </div>
 
-    <div class="procedure">
-        <h3>PROCEDURE TO RECEIVE YOUR DATA PACKAGE</h3>
-        <ol>
-            <li>Select your data package.</li>
-            <li>Enter your Safaricom number.</li>
-            <li>Click SEND M-PESA PROMPT.</li>
-            <li>Wait for the M-Pesa prompt on your phone.</li>
-            <li>Check the payment amount.</li>
-            <li>Enter your M-Pesa PIN to authorize payment.</li>
-            <li>Wait for payment confirmation.</li>
-        </ol>
-    </div>
+  <script>
+    // Read plan and price from URL (e.g. checkout.html?plan=Daily%205GB&price=100)
+    const params = new URLSearchParams(window.location.search);
+    const planName = params.get('plan') || 'Starlink Data Bundle';
+    const planPrice = params.get('price') || '';
 
-    <button class="back-button" onclick="history.back()" type="button">
-        BACK
-    </button>
-</div>
+    document.getElementById('displayPlan').textContent = planName;
+    const amountInput = document.getElementById('amount');
+    const displayAmount = document.getElementById('displayAmount');
 
-<script>
-// Payment requests go to the same website customers are visiting.
-// When hosted on Render, this automatically uses the Render backend.
-const STK_PUSH_URL = "/api/mpesa/stk-push";
-
-// Prices shown here are for display only.
-// The backend independently checks PACKAGES_JSON before charging.
-const packages = {
-    daily1: { name: "Daily Package 1", price: 20 },
-    daily2: { name: "Daily Package 2", price: 35 },
-    daily3: { name: "Daily Package 3", price: 50 },
-    daily4: { name: "Daily Package 4", price: 75 },
-    daily5: { name: "Daily Package 5", price: 85 },
-    daily6: { name: "Daily Package 6", price: 99 },
-
-    weekly1: { name: "3GB", price: 55 },
-    weekly2: { name: "10GB + YouTube", price: 150 },
-    weekly3: { name: "20GB + YouTube", price: 250 },
-    weekly4: { name: "30GB + YouTube", price: 399 },
-
-    monthly1: { name: "45GB + YouTube", price: 500 },
-    monthly2: { name: "70GB + YouTube + WhatsApp", price: 1000 },
-    monthly3: { name: "135GB + YouTube + WhatsApp", price: 1500 }
-};
-
-const params = new URLSearchParams(window.location.search);
-const packageId = params.get("package");
-const selectedPackage = packages[packageId];
-
-const packageName = document.getElementById("packageName");
-const packagePrice = document.getElementById("packagePrice");
-const payButton = document.getElementById("payButton");
-const statusMessage = document.getElementById("status");
-const paymentForm = document.getElementById("paymentForm");
-
-if (selectedPackage) {
-    packageName.textContent = selectedPackage.name;
-    packagePrice.textContent =
-        "Price: KSh " + selectedPackage.price;
-} else {
-    packageName.textContent = "Package Not Found";
-    packagePrice.textContent = "Unavailable";
-    payButton.disabled = true;
-    statusMessage.textContent =
-        "Please return to the packages page and select a package.";
-}
-
-function formatPhone(phone) {
-    let number = String(phone || "").replace(/[\s-]/g, "");
-
-    if (number.startsWith("+")) {
-        number = number.substring(1);
+    if (planPrice) {
+      amountInput.value = planPrice;
+      amountInput.readOnly = true;
+      displayAmount.textContent = planPrice;
     }
 
-    if (/^0[17]\d{8}$/.test(number)) {
-        number = "254" + number.substring(1);
+    amountInput.addEventListener('input', () => {
+      displayAmount.textContent = amountInput.value || '0';
+    });
+
+    const form = document.getElementById('checkoutForm');
+    const payBtn = document.getElementById('payBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function showStatus(type, text) {
+      statusBox.className = 'status ' + type;
+      statusBox.textContent = text;
     }
 
-    if (/^[17]\d{8}$/.test(number)) {
-        number = "254" + number;
-    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phone = document.getElementById('phone').value.trim();
+      const amount = amountInput.value;
 
-    if (/^254[17]\d{8}$/.test(number)) {
-        return number;
-    }
+      payBtn.disabled = true;
+      showStatus('info', 'Sending M-Pesa prompt to your phone...');
 
-    return null;
-}
-
-paymentForm.addEventListener("submit", async function(event) {
-    event.preventDefault();
-
-    if (!selectedPackage) {
-        statusMessage.textContent = "Please select a valid package.";
-        return;
-    }
-
-    const phone = formatPhone(
-        document.getElementById("phone").value
-    );
-
-    if (!phone) {
-        statusMessage.textContent =
-            "Please enter a valid Kenyan Safaricom number.";
-        return;
-    }
-
-    payButton.disabled = true;
-    payButton.textContent = "PROCESSING...";
-    statusMessage.textContent =
-        "Connecting to M-Pesa. Please wait...";
-
-    try {
-        const response = await fetch(STK_PUSH_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                packageId: packageId,
-                phone: phone
-            })
+      try {
+        const res = await fetch('/api/stkpush', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, amount, plan: planName })
         });
 
-        const result = await response.json();
+        const data = await res.json();
 
-        if (!response.ok || !result.success) {
-            throw new Error(
-                result.error || "Unable to start payment. Please try again."
-            );
+        if (res.ok && data.ResponseCode === '0') {
+          showStatus('info', 'Prompt sent! Check your phone and enter your M-Pesa PIN.');
+          pollPaymentStatus(data.CheckoutRequestID);
+        } else {
+          showStatus('error', data.error || data.errorMessage || 'Failed to initiate payment.');
+          payBtn.disabled = false;
         }
+      } catch (err) {
+        showStatus('error', 'Network error. Please check your connection.');
+        payBtn.disabled = false;
+      }
+    });
 
-        statusMessage.textContent =
-            result.message || "M-Pesa prompt submitted. Check your phone.";
+    // Poll backend every 3 seconds to verify PIN confirmation
+    function pollPaymentStatus(checkoutRequestId) {
+      let attempts = 0;
+      const maxAttempts = 20; // 60 seconds timeout
 
-    } catch (error) {
-        console.error("Payment error:", error);
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/api/payment-status/${checkoutRequestId}`);
+          const result = await res.json();
 
-        statusMessage.textContent =
-            "Payment connection failed: " + error.message;
-
-    } finally {
-        payButton.disabled = false;
-        payButton.textContent = "SEND M-PESA PROMPT";
+          if (result.status === 'SUCCESS') {
+            clearInterval(interval);
+            showStatus('success', result.message + ' Your Starlink bundle is being activated!');
+            payBtn.disabled = false;
+          } else if (result.status === 'FAILED') {
+            clearInterval(interval);
+            showStatus('error', result.message);
+            payBtn.disabled = false;
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            showStatus('error', 'Payment verification timed out. If you paid, please contact support.');
+            payBtn.disabled = false;
+          }
+        } catch (err) {
+          // Ignore transient network errors while polling
+        }
+      }, 3000);
     }
-});
-</script>
+  </script>
 </body>
 </html>

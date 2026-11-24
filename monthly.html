@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SRALINK - Monthly Packages</title>
+<title>STARLINK - Monthly Packages</title>
 
 <style>
 * { box-sizing: border-box; }
@@ -21,7 +20,7 @@ body {
 .bg-overlay {
     position: fixed;
     inset: 0;
-    background: url('https://postimg.cc/zHDPXbzQ') center/cover no-repeat;
+    background: url('https://postimg.cc') center/cover no-repeat;
     opacity: 0.3;
     z-index: -1;
 }
@@ -97,21 +96,21 @@ button:hover { background: white; }
 <h1 class="page-title">MONTHLY PACKAGES</h1>
 
 <div class="package-slot">
-    <p class="description">45Gb + YouTube</p>
+    <p class="description">45Gb + YouTube Monthly</p>
     <p class="price">Price: KSh:500</p>
-    <button onclick="buyPackage('monthly1','Description 1',500)">Buy Now</button>
+    <button onclick="buyPackage('monthly1', '45Gb + YouTube Monthly', 500)">Buy Now</button>
 </div>
 
 <div class="package-slot">
-    <p class="description">70Gb + YouTube + WhatsApp</p>
+    <p class="description">70Gb + YouTube + WhatsApp Monthly</p>
     <p class="price">Price: KSh:1000</p>
-    <button onclick="buyPackage('monthly2','Description 2',1000)">Buy Now</button>
+    <button onclick="buyPackage('monthly2', '70Gb + YouTube + WhatsApp Monthly', 1000)">Buy Now</button>
 </div>
 
 <div class="package-slot">
-    <p class="description">135Gb + YouTube + WhatsApp</p>
+    <p class="description">135Gb + YouTube + WhatsApp Monthly</p>
     <p class="price">Price: KSh:1500</p>
-    <button onclick="buyPackage('monthly3','Description 3',1500)">Buy Now</button>
+    <button onclick="buyPackage('monthly3', '135Gb + YouTube + WhatsApp Monthly', 1500)">Buy Now</button>
 </div>
 
 <div class="back-button">
@@ -124,7 +123,7 @@ button:hover { background: white; }
 function buyPackage(id, name, price) {
     const params = new URLSearchParams({
         package: id,
-        name: name,
+        plan: name,
         price: price
     });
 

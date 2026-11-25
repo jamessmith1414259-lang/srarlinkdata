@@ -5,7 +5,6 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
-// Disable caching so updates appear immediately
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   next();
@@ -15,7 +14,9 @@ app.use(express.static(__dirname));
 
 const paymentStatuses = new Map();
 
-const baseUrl = (process.env.MPESA_ENV || 'sandbox').trim() === 'production'
+// Strictly normalize MPESA_ENV so spaces/newlines never break the URL
+const envMode = (process.env.MPESA_ENV || 'sandbox').trim().toLowerCase();
+const baseUrl = envMode === 'production'
   ? 'https://safaricom.co.ke'
   : 'https://safaricom.co.ke';
 
@@ -23,7 +24,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Middleware: Generate Safaricom OAuth Token using native fetch
+// Middleware: Generate Safaricom OAuth Token
 const getAccessToken = async (req, res, next) => {
   try {
     const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
@@ -36,34 +37,32 @@ const getAccessToken = async (req, res, next) => {
     }
 
     const auth = Buffer.from(`${key}:${secret}`).toString('base64');
+    const authUrl = `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`;
 
-    const response = await fetch(
-      `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+    const response = await fetch(authUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
-    );
+    });
 
     const rawText = await response.text();
     let data = {};
     try {
       data = JSON.parse(rawText);
     } catch (e) {
-      console.error('Non-JSON OAuth Response:', response.status, rawText.slice(0, 300));
+      console.error('Non-JSON OAuth Response:', response.status, authUrl, rawText.slice(0, 300));
       return res.status(502).json({
-        error: `Safaricom Firewall Blocked Request (HTTP ${response.status}). Sandbox often blocks shared cloud IPs; Production API works once live.`
+        error: `Safaricom Firewall Blocked Request (HTTP ${response.status}) on ${authUrl}`
       });
     }
 
     if (!response.ok || !data.access_token) {
-      console.error('OAuth Rejected:', response.status, data);
+      console.error('OAuth Rejected:', response.status, authUrl, data);
       return res.status(response.status).json({
-        error: `Daraja Auth Rejected (${response.status}): ${data.errorMessage || data.error || 'Check Consumer Key & Secret'}`
+        error: `Daraja Auth Error (${response.status}) at ${authUrl}: ${data.errorMessage || data.fault?.faultstring || JSON.stringify(data)}`
       });
     }
 
@@ -118,7 +117,8 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
       TransactionDesc: `Starlink ${plan || 'Data'} Bundle`
     };
 
-    const response = await fetch(`${baseUrl}/mpesa/stkpush/v1/processrequest`, {
+    const stkUrl = `${baseUrl}/mpesa/stkpush/v1/processrequest`;
+    const response = await fetch(stkUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,12 +129,20 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
       body: JSON.stringify(stkPayload)
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      return res.status(502).json({
+        error: `STK Push Firewall/HTML Response (HTTP ${response.status}) at ${stkUrl}`
+      });
+    }
 
     if (!response.ok) {
       console.error('STK Push Rejected:', response.status, data);
       return res.status(response.status).json({
-        error: data.errorMessage || data.ResultDesc || 'STK Push rejected by Safaricom'
+        error: `STK Error (${response.status}): ${data.errorMessage || data.ResultDesc || JSON.stringify(data)}`
       });
     }
 

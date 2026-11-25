@@ -1,50 +1,77 @@
 const express = require('express');
-const axios = require('axios');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
+
+// Disable caching so updates appear immediately
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  next();
+});
+
 app.use(express.static(__dirname));
 
 const paymentStatuses = new Map();
 
-const baseUrl = process.env.MPESA_ENV === 'production'
+const baseUrl = (process.env.MPESA_ENV || 'sandbox').trim() === 'production'
   ? 'https://safaricom.co.ke'
   : 'https://safaricom.co.ke';
-
-// Standard headers to bypass Safaricom CloudFront/Incapsula 403 WAF blocks
-const safaricomHeaders = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'application/json'
-};
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Middleware: Generate Safaricom OAuth Token
+// Middleware: Generate Safaricom OAuth Token using native fetch
 const getAccessToken = async (req, res, next) => {
   try {
     const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
     const secret = (process.env.MPESA_CONSUMER_SECRET || '').trim();
+
+    if (!key || !secret) {
+      return res.status(500).json({
+        error: 'Missing MPESA_CONSUMER_KEY or MPESA_CONSUMER_SECRET in Render Environment'
+      });
+    }
+
     const auth = Buffer.from(`${key}:${secret}`).toString('base64');
 
-    const response = await axios.get(
+    const response = await fetch(
       `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
       {
+        method: 'GET',
         headers: {
-          ...safaricomHeaders,
-          Authorization: `Basic ${auth}`
+          'Authorization': `Basic ${auth}`,
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       }
     );
 
-    req.accessToken = response.data.access_token;
+    const rawText = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      console.error('Non-JSON OAuth Response:', response.status, rawText.slice(0, 300));
+      return res.status(502).json({
+        error: `Safaricom Firewall Blocked Request (HTTP ${response.status}). Sandbox often blocks shared cloud IPs; Production API works once live.`
+      });
+    }
+
+    if (!response.ok || !data.access_token) {
+      console.error('OAuth Rejected:', response.status, data);
+      return res.status(response.status).json({
+        error: `Daraja Auth Rejected (${response.status}): ${data.errorMessage || data.error || 'Check Consumer Key & Secret'}`
+      });
+    }
+
+    req.accessToken = data.access_token;
     next();
   } catch (error) {
-    console.error('OAuth Error:', error.response?.status, error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to authenticate with Safaricom Daraja' });
+    console.error('OAuth Network Error:', error.message);
+    res.status(500).json({ error: `Network error connecting to Safaricom: ${error.message}` });
   }
 };
 
@@ -91,31 +118,37 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
       TransactionDesc: `Starlink ${plan || 'Data'} Bundle`
     };
 
-    const response = await axios.post(
-      `${baseUrl}/mpesa/stkpush/v1/processrequest`,
-      stkPayload,
-      {
-        headers: {
-          ...safaricomHeaders,
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${req.accessToken}`
-        }
-      }
-    );
+    const response = await fetch(`${baseUrl}/mpesa/stkpush/v1/processrequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${req.accessToken}`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      body: JSON.stringify(stkPayload)
+    });
 
-    if (response.data.CheckoutRequestID) {
-      paymentStatuses.set(response.data.CheckoutRequestID, {
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('STK Push Rejected:', response.status, data);
+      return res.status(response.status).json({
+        error: data.errorMessage || data.ResultDesc || 'STK Push rejected by Safaricom'
+      });
+    }
+
+    if (data.CheckoutRequestID) {
+      paymentStatuses.set(data.CheckoutRequestID, {
         status: 'PENDING',
         message: 'Waiting for PIN entry...'
       });
     }
 
-    res.status(200).json(response.data);
+    res.status(200).json(data);
   } catch (error) {
-    console.error('STK Push Error:', error.response?.status, error.response?.data || error.message);
-    res.status(500).json({
-      error: error.response?.data?.errorMessage || 'Failed to send M-Pesa prompt'
-    });
+    console.error('STK Push Error:', error.message);
+    res.status(500).json({ error: `Failed to send M-Pesa prompt: ${error.message}` });
   }
 });
 

@@ -13,11 +13,19 @@ body {
     min-height: 100vh;
     font-family: Arial, sans-serif;
     color: white;
-    background: #02081a url('bg.png') center center / contain no-repeat fixed;
+    background-color: #02081a;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+/* Dedicated fullscreen background layer for smooth mobile & desktop scaling */
+.bg-image {
+    position: fixed;
+    inset: 0;
+    background: url('bg.png') center center / cover no-repeat;
+    z-index: -2;
 }
 
 .overlay {
@@ -31,6 +39,7 @@ body {
     text-align: center;
     background: rgba(0, 18, 48, 0.78);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border: 1px solid #00f0ff;
     box-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
     border-radius: 16px;
@@ -87,6 +96,7 @@ button {
     font-weight: bold;
     font-size: 15px;
     width: 100%;
+    transition: 0.2s;
 }
 
 button:hover { background: #ffffff; }
@@ -94,6 +104,7 @@ button:hover { background: #ffffff; }
 </head>
 <body>
 
+<div class="bg-image"></div>
 <div class="overlay"></div>
 
 <div class="hero">

@@ -81,17 +81,6 @@
     }
     button:hover { background: #ffffff; }
     button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
-    .status {
-      margin-top: 16px;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      text-align: center;
-      display: none;
-    }
-    .status.info { display: block; background: rgba(0, 140, 255, 0.35); border: 1px solid #008cff; color: #e0f2fe; }
-    .status.success { display: block; background: rgba(0, 255, 102, 0.25); border: 1px solid #00ff66; color: #bbf7d0; }
-    .status.error { display: block; background: rgba(239, 68, 68, 0.35); border: 1px solid #ef4444; color: #fecaca; }
     .back-link {
       display: block;
       text-align: center;
@@ -121,10 +110,9 @@
         required
       />
 
-      <button type="submit" id="payBtn">Pay Now via M-Pesa</button>
+      <button type="submit" id="payBtn">Pay Now</button>
     </form>
 
-    <div id="statusBox" class="status"></div>
     <a href="index.html" class="back-link">← Back to Packages</a>
   </div>
 
@@ -146,16 +134,9 @@
 
     const form = document.getElementById('checkoutForm');
     const payBtn = document.getElementById('payBtn');
-    const statusBox = document.getElementById('statusBox');
 
     if (planPrice <= 0) {
       payBtn.disabled = true;
-      showStatus('error', 'No valid package selected. Please go back and choose a plan.');
-    }
-
-    function showStatus(type, text) {
-      statusBox.className = 'status ' + type;
-      statusBox.textContent = text;
     }
 
     form.addEventListener('submit', async (e) => {
@@ -163,7 +144,6 @@
       const phone = document.getElementById('phone').value.trim();
 
       payBtn.disabled = true;
-      showStatus('info', 'Sending M-Pesa prompt to your phone...');
 
       try {
         const res = await fetch('/api/stkpush', {
@@ -175,14 +155,11 @@
         const data = await res.json();
 
         if (res.ok && data.ResponseCode === '0') {
-          showStatus('info', 'Prompt sent! Check your phone and enter your M-Pesa PIN.');
           pollPaymentStatus(data.CheckoutRequestID);
         } else {
-          showStatus('error', data.error || data.errorMessage || 'Failed to initiate payment.');
           payBtn.disabled = false;
         }
       } catch (err) {
-        showStatus('error', 'Network error. Please check your connection.');
         payBtn.disabled = false;
       }
     });
@@ -197,17 +174,8 @@
           const res = await fetch(`/api/payment-status/${checkoutRequestId}`);
           const result = await res.json();
 
-          if (result.status === 'SUCCESS') {
+          if (result.status === 'SUCCESS' || result.status === 'FAILED' || attempts >= maxAttempts) {
             clearInterval(interval);
-            showStatus('success', result.message + ' Your Starlink bundle is being activated!');
-            payBtn.disabled = false;
-          } else if (result.status === 'FAILED') {
-            clearInterval(interval);
-            showStatus('error', result.message);
-            payBtn.disabled = false;
-          } else if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            showStatus('error', 'Payment verification timed out. If you paid, please contact support.');
             payBtn.disabled = false;
           }
         } catch (err) {}

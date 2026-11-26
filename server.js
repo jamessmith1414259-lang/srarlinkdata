@@ -49,10 +49,9 @@ function getNairobiTimestamp() {
   );
 }
 
-// Middleware: Get Cached OAuth Token (0ms delay when cached!)
+// Middleware: Get Cached OAuth Token (0ms delay when cached)
 const getAccessToken = async (req, res, next) => {
   try {
-    // Return cached token immediately if still valid (with 2-minute safety buffer)
     if (cachedToken && Date.now() < tokenExpiryTime) {
       req.accessToken = cachedToken;
       return next();
@@ -74,7 +73,7 @@ const getAccessToken = async (req, res, next) => {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
 
@@ -85,7 +84,6 @@ const getAccessToken = async (req, res, next) => {
       return res.status(response.status).json({ error: 'Failed to authenticate with Safaricom' });
     }
 
-    // Cache token for 55 minutes (3,300,000 ms)
     cachedToken = data.access_token;
     tokenExpiryTime = Date.now() + (55 * 60 * 1000);
     req.accessToken = cachedToken;
@@ -107,7 +105,8 @@ async function prewarmToken() {
     const res = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
       headers: {
         'Authorization': `Basic ${auth}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
     const data = await res.json();
@@ -116,7 +115,9 @@ async function prewarmToken() {
       tokenExpiryTime = Date.now() + (55 * 60 * 1000);
       console.log('Safaricom OAuth token pre-warmed and cached.');
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Prewarm error:', e.message);
+  }
 }
 
 // Route 1: Trigger M-Pesa STK Push
@@ -162,7 +163,7 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': `Bearer ${req.accessToken}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
       body: JSON.stringify(stkPayload)
     });
@@ -171,7 +172,6 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
 
     if (!response.ok) {
       console.error('STK Push Rejected:', response.status, data);
-      // If token expired unexpectedly, clear cache for next request
       if (response.status === 401) {
         cachedToken = null;
         tokenExpiryTime = 0;
@@ -239,6 +239,6 @@ app.get('/api/payment-status/:checkoutRequestId', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${envMode} mode`);
+  console.log(`Server running on port ${PORT} in ${envMode} mode (${baseUrl})`);
   prewarmToken();
 });

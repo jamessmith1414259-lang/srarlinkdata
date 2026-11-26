@@ -14,15 +14,29 @@ app.use(express.static(__dirname));
 
 const paymentStatuses = new Map();
 
-// Strictly normalize MPESA_ENV so spaces/newlines never break the URL
+// FIXED: Use api.safaricom.co.ke for production and sandbox.safaricom.co.ke for sandbox
 const envMode = (process.env.MPESA_ENV || 'sandbox').trim().toLowerCase();
 const baseUrl = envMode === 'production'
-  ? 'https://safaricom.co.ke'
-  : 'https://safaricom.co.ke';
+  ? 'https://api.safaricom.co.ke'
+  : 'https://sandbox.safaricom.co.ke';
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// Helper: Generate exact East Africa Time (EAT / UTC+3) timestamp for Safaricom
+function getNairobiTimestamp() {
+  const now = new Date();
+  const eatTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+  return (
+    eatTime.getUTCFullYear().toString() +
+    String(eatTime.getUTCMonth() + 1).padStart(2, '0') +
+    String(eatTime.getUTCDate()).padStart(2, '0') +
+    String(eatTime.getUTCHours()).padStart(2, '0') +
+    String(eatTime.getUTCMinutes()).padStart(2, '0') +
+    String(eatTime.getUTCSeconds()).padStart(2, '0')
+  );
+}
 
 // Middleware: Generate Safaricom OAuth Token
 const getAccessToken = async (req, res, next) => {
@@ -44,7 +58,7 @@ const getAccessToken = async (req, res, next) => {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
 
@@ -87,17 +101,9 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
     if (phone.startsWith('0')) phone = '254' + phone.slice(1);
     if (phone.startsWith('+')) phone = phone.slice(1);
 
-    const now = new Date();
-    const timestamp =
-      now.getFullYear().toString() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0') +
-      String(now.getHours()).padStart(2, '0') +
-      String(now.getMinutes()).padStart(2, '0') +
-      String(now.getSeconds()).padStart(2, '0');
-
-    const shortcode = (process.env.MPESA_SHORTCODE || '').trim();
-    const passkey = (process.env.MPESA_PASSKEY || '').trim();
+    const timestamp = getNairobiTimestamp();
+    const shortcode = (process.env.MPESA_SHORTCODE || '174379').trim();
+    const passkey = (process.env.MPESA_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919').trim();
     const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString('base64');
 
     const transactionType = (process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline').trim();
@@ -113,8 +119,8 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
       PartyB: partyB,
       PhoneNumber: phone,
       CallBackURL: (process.env.MPESA_CALLBACK_URL || '').trim(),
-      AccountReference: plan || 'StarlinkData',
-      TransactionDesc: `Starlink ${plan || 'Data'} Bundle`
+      AccountReference: (plan || 'StarlinkData').slice(0, 12), // Max 12 chars allowed by Safaricom
+      TransactionDesc: `Starlink ${plan || 'Data'}`.slice(0, 13) // Max 13 chars allowed by Safaricom
     };
 
     const stkUrl = `${baseUrl}/mpesa/stkpush/v1/processrequest`;
@@ -124,7 +130,7 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': `Bearer ${req.accessToken}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
       body: JSON.stringify(stkPayload)
     });
@@ -206,5 +212,6 @@ app.get('/api/payment-status/:checkoutRequestId', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} in ${envMode} mode (${baseUrl})`);
 });
+           

@@ -1,244 +1,137 @@
-const express = require('express');
-const path = require('path');
-const https = require('https');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STARLINK - Weekly Packages</title>
 
-const app = express();
-app.use(express.json());
+<style>
+* { box-sizing: border-box; }
 
-// Reuse TLS connections to Safaricom to eliminate SSL handshake delays
-const httpsAgent = new https.Agent({ keepAlive: true });
-
-app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  next();
-});
-
-app.use(express.static(__dirname));
-
-const paymentStatuses = new Map();
-
-// In-memory cache for Safaricom OAuth Token (valid for ~59 mins)
-let cachedToken = null;
-let tokenExpiryTime = 0;
-
-const envMode = (process.env.MPESA_ENV || 'sandbox').trim().toLowerCase();
-const baseUrl = envMode === 'production'
-  ? 'https://safaricom.co.ke'
-  : 'https://safaricom.co.ke';
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Health check endpoint for UptimeRobot to prevent Render cold starts
-app.get('/ping', (req, res) => {
-  res.status(200).send('OK');
-});
-
-function getNairobiTimestamp() {
-  const now = new Date();
-  const eatTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-  return (
-    eatTime.getUTCFullYear().toString() +
-    String(eatTime.getUTCMonth() + 1).padStart(2, '0') +
-    String(eatTime.getUTCDate()).padStart(2, '0') +
-    String(eatTime.getUTCHours()).padStart(2, '0') +
-    String(eatTime.getUTCMinutes()).padStart(2, '0') +
-    String(eatTime.getUTCSeconds()).padStart(2, '0')
-  );
+body {
+    margin: 0;
+    padding: 20px 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    color: white;
+    background-color: #000b29;
+    background-image: url('./bg.png');
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
-// Middleware: Get Cached OAuth Token (0ms delay when cached)
-const getAccessToken = async (req, res, next) => {
-  try {
-    if (cachedToken && Date.now() < tokenExpiryTime) {
-      req.accessToken = cachedToken;
-      return next();
-    }
-
-    const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
-    const secret = (process.env.MPESA_CONSUMER_SECRET || '').trim();
-
-    if (!key || !secret) {
-      return res.status(500).json({ error: 'Missing M-Pesa keys in Render Environment' });
-    }
-
-    const auth = Buffer.from(`${key}:${secret}`).toString('base64');
-    const authUrl = `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`;
-
-    const response = await fetch(authUrl, {
-      method: 'GET',
-      agent: httpsAgent,
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.access_token) {
-      console.error('OAuth Rejected:', response.status, data);
-      return res.status(response.status).json({ error: 'Failed to authenticate with Safaricom' });
-    }
-
-    cachedToken = data.access_token;
-    tokenExpiryTime = Date.now() + (55 * 60 * 1000);
-    req.accessToken = cachedToken;
-    next();
-  } catch (error) {
-    console.error('OAuth Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Pre-warm the OAuth token right when the server boots up
-async function prewarmToken() {
-  try {
-    const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
-    const secret = (process.env.MPESA_CONSUMER_SECRET || '').trim();
-    if (!key || !secret) return;
-
-    const auth = Buffer.from(`${key}:${secret}`).toString('base64');
-    const res = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    const data = await res.json();
-    if (data.access_token) {
-      cachedToken = data.access_token;
-      tokenExpiryTime = Date.now() + (55 * 60 * 1000);
-      console.log('Safaricom OAuth token pre-warmed and cached.');
-    }
-  } catch (e) {
-    console.error('Prewarm error:', e.message);
-  }
+.container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    width: 90%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
 }
 
-// Route 1: Trigger M-Pesa STK Push
-app.post('/api/stkpush', getAccessToken, async (req, res) => {
-  try {
-    let { phone, amount, plan } = req.body;
+.page-title {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #00f0ff;
+    background: rgba(0, 18, 48, 0.8);
+    border: 1px solid #00f0ff;
+    padding: 14px;
+    border-radius: 12px;
+    text-shadow: 0 0 12px #008cff;
+}
 
-    if (!phone || !amount) {
-      return res.status(400).json({ error: 'Phone number and amount are required' });
-    }
+.package-slot {
+    background: rgba(0, 20, 50, 0.82);
+    border: 1px solid #00f0ff;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: 0.3s;
+}
 
-    phone = phone.toString().replace(/\s+/g, '');
-    if (phone.startsWith('0')) phone = '254' + phone.slice(1);
-    if (phone.startsWith('+')) phone = phone.slice(1);
+.package-slot:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 18px #00f0ff;
+}
 
-    const timestamp = getNairobiTimestamp();
-    const shortcode = (process.env.MPESA_SHORTCODE || '').trim();
-    const passkey = (process.env.MPESA_PASSKEY || '').trim();
-    const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString('base64');
+.description {
+    color: #00ff66;
+    font-size: 18px;
+    font-weight: bold;
+}
 
-    const transactionType = (process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline').trim();
-    const partyB = (process.env.MPESA_PARTY_B || shortcode).trim();
+.price {
+    color: #38bdf8;
+    font-size: 22px;
+    font-weight: bold;
+}
 
-    const stkPayload = {
-      BusinessShortCode: shortcode,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: transactionType,
-      Amount: Math.ceil(Number(amount)),
-      PartyA: phone,
-      PartyB: partyB,
-      PhoneNumber: phone,
-      CallBackURL: (process.env.MPESA_CALLBACK_URL || '').trim(),
-      AccountReference: (plan || 'StarlinkData').slice(0, 12),
-      TransactionDesc: `Starlink ${plan || 'Data'}`.slice(0, 13)
-    };
+button {
+    background: #00f0ff;
+    color: #00051a;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
 
-    const stkUrl = `${baseUrl}/mpesa/stkpush/v1/processrequest`;
-    const response = await fetch(stkUrl, {
-      method: 'POST',
-      agent: httpsAgent,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${req.accessToken}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-      body: JSON.stringify(stkPayload)
-    });
+button:hover { background: white; }
 
-    const data = await response.json();
+.back-button {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+</style>
+</head>
 
-    if (!response.ok) {
-      console.error('STK Push Rejected:', response.status, data);
-      if (response.status === 401) {
-        cachedToken = null;
-        tokenExpiryTime = 0;
-      }
-      return res.status(response.status).json({ error: data.errorMessage || 'STK Push failed' });
-    }
+<body>
 
-    if (data.CheckoutRequestID) {
-      paymentStatuses.set(data.CheckoutRequestID, {
-        status: 'PENDING',
-        message: 'Waiting for PIN entry...'
-      });
-    }
+<div class="container">
 
-    res.status(200).json(data);
-  } catch (error) {
-    console.error('STK Push Error:', error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
+<h1 class="page-title">WEEKLY PACKAGES</h1>
 
-// Route 2: Safaricom Callback URL
-app.post('/api/mpesa/callback', (req, res) => {
-  try {
-    const callbackData = req.body?.Body?.stkCallback;
-    if (!callbackData) {
-      return res.status(400).json({ ResultCode: 1, ResultDesc: 'Invalid payload' });
-    }
+<div class="package-slot">
+    <p class="description">3Gb Weekly</p>
+    <p class="price">Price: KSh:55</p>
+    <button onclick="buyPackage('weekly1', '3Gb ', 55)">Buy Now</button>
+</div>
 
-    const checkoutRequestId = callbackData.CheckoutRequestID;
-    console.log('M-Pesa Callback Received:', JSON.stringify(callbackData, null, 2));
+<div class="package-slot">
+    <p class="description">10Gb+youtube</p>
+    <p class="price">Price: KSh:150</p>
+    <button onclick="buyPackage('weekly2', '10Gb+youtube', 150)">Buy Now</button>
+</div>
 
-    if (callbackData.ResultCode === 0) {
-      const metadata = callbackData.CallbackMetadata?.Item || [];
-      const receiptItem = metadata.find((item) => item.Name === 'MpesaReceiptNumber');
-      const receipt = receiptItem ? receiptItem.Value : 'Confirmed';
+<div class="package-slot">
+    <p class="description">20Gb+youtube</p>
+    <p class="price">Price: KSh:250</p>
+    <button onclick="buyPackage('weekly3', '20Gb+youtube', 250)">Buy Now</button>
+</div>
 
-      paymentStatuses.set(checkoutRequestId, {
-        status: 'SUCCESS',
-        receipt: receipt,
-        message: `Payment confirmed! Receipt: ${receipt}`
-      });
-    } else {
-      paymentStatuses.set(checkoutRequestId, {
-        status: 'FAILED',
-        message: callbackData.ResultDesc || 'Payment cancelled or failed.'
-      });
-    }
+<div class="package-slot">
+    <p class="description">30Gb+youtube</p>
+    <p class="price">Price: KSh:399</p>
+    <button onclick="buyPackage('weekly4', '30Gb+youtube', 399)">Buy Now</button>
+</div>
 
-    res.status(200).json({ ResultCode: 0, ResultDesc: 'Accepted' });
-  } catch (err) {
-    console.error('Callback processing error:', err);
-    res.status(200).json({ ResultCode: 0, ResultDesc: 'Accepted' });
-  }
-});
+<div class="back-button">
+    <button onclick="location.href='index.html'">Back to Home</button>
+</div>
 
-// Route 3: Frontend polling endpoint
-app.get('/api/payment-status/:checkoutRequestId', (req, res) => {
-  const statusObj = paymentStatuses.get(req.params.checkoutRequestId);
-  if (!statusObj) {
-    return res.status(404).json({ status: 'UNKNOWN', message: 'Transaction not found' });
-  }
-  res.json(statusObj);
-});
+</div>
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${envMode} mode (${baseUrl})`);
-  prewarmToken();
-});
+<script>
+function buyPackage(id, name, price) {
+    sessionStorage.setItem('selectedPlan', name);
+    sessionStorage.setItem('selectedPrice', price);
+    const params = new URLSearchParams({ package: id, plan: name, price: price });
+    location.href = 'checkout.html?' + params.toString();
+}
+</script>
+
+</body>
+</html>

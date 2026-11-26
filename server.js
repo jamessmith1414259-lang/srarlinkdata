@@ -1,9 +1,13 @@
 const express = require('express');
 const path = require('path');
+const https = require('https');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
+
+// Reuse TLS connections to Safaricom to eliminate SSL handshake delays
+const httpsAgent = new https.Agent({ keepAlive: true });
 
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -14,17 +18,24 @@ app.use(express.static(__dirname));
 
 const paymentStatuses = new Map();
 
-// FIXED: Use api.safaricom.co.ke for production and sandbox.safaricom.co.ke for sandbox
+// In-memory cache for Safaricom OAuth Token (valid for ~59 mins)
+let cachedToken = null;
+let tokenExpiryTime = 0;
+
 const envMode = (process.env.MPESA_ENV || 'sandbox').trim().toLowerCase();
 const baseUrl = envMode === 'production'
-  ? 'https://api.safaricom.co.ke'
-  : 'https://sandbox.safaricom.co.ke';
+  ? 'https://safaricom.co.ke'
+  : 'https://safaricom.co.ke';
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Helper: Generate exact East Africa Time (EAT / UTC+3) timestamp for Safaricom
+// Health check endpoint for UptimeRobot to prevent Render cold starts
+app.get('/ping', (req, res) => {
+  res.status(200).send('OK');
+});
+
 function getNairobiTimestamp() {
   const now = new Date();
   const eatTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
@@ -38,16 +49,20 @@ function getNairobiTimestamp() {
   );
 }
 
-// Middleware: Generate Safaricom OAuth Token
+// Middleware: Get Cached OAuth Token (0ms delay when cached!)
 const getAccessToken = async (req, res, next) => {
   try {
+    // Return cached token immediately if still valid (with 2-minute safety buffer)
+    if (cachedToken && Date.now() < tokenExpiryTime) {
+      req.accessToken = cachedToken;
+      return next();
+    }
+
     const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
     const secret = (process.env.MPESA_CONSUMER_SECRET || '').trim();
 
     if (!key || !secret) {
-      return res.status(500).json({
-        error: 'Missing MPESA_CONSUMER_KEY or MPESA_CONSUMER_SECRET in Render Environment'
-      });
+      return res.status(500).json({ error: 'Missing M-Pesa keys in Render Environment' });
     }
 
     const auth = Buffer.from(`${key}:${secret}`).toString('base64');
@@ -55,38 +70,54 @@ const getAccessToken = async (req, res, next) => {
 
     const response = await fetch(authUrl, {
       method: 'GET',
+      agent: httpsAgent,
       headers: {
         'Authorization': `Basic ${auth}`,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
 
-    const rawText = await response.text();
-    let data = {};
-    try {
-      data = JSON.parse(rawText);
-    } catch (e) {
-      console.error('Non-JSON OAuth Response:', response.status, authUrl, rawText.slice(0, 300));
-      return res.status(502).json({
-        error: `Safaricom Firewall Blocked Request (HTTP ${response.status}) on ${authUrl}`
-      });
-    }
+    const data = await response.json();
 
     if (!response.ok || !data.access_token) {
-      console.error('OAuth Rejected:', response.status, authUrl, data);
-      return res.status(response.status).json({
-        error: `Daraja Auth Error (${response.status}) at ${authUrl}: ${data.errorMessage || data.fault?.faultstring || JSON.stringify(data)}`
-      });
+      console.error('OAuth Rejected:', response.status, data);
+      return res.status(response.status).json({ error: 'Failed to authenticate with Safaricom' });
     }
 
-    req.accessToken = data.access_token;
+    // Cache token for 55 minutes (3,300,000 ms)
+    cachedToken = data.access_token;
+    tokenExpiryTime = Date.now() + (55 * 60 * 1000);
+    req.accessToken = cachedToken;
     next();
   } catch (error) {
-    console.error('OAuth Network Error:', error.message);
-    res.status(500).json({ error: `Network error connecting to Safaricom: ${error.message}` });
+    console.error('OAuth Error:', error.message);
+    res.status(500).json({ error: error.message });
   }
 };
+
+// Pre-warm the OAuth token right when the server boots up
+async function prewarmToken() {
+  try {
+    const key = (process.env.MPESA_CONSUMER_KEY || '').trim();
+    const secret = (process.env.MPESA_CONSUMER_SECRET || '').trim();
+    if (!key || !secret) return;
+
+    const auth = Buffer.from(`${key}:${secret}`).toString('base64');
+    const res = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      cachedToken = data.access_token;
+      tokenExpiryTime = Date.now() + (55 * 60 * 1000);
+      console.log('Safaricom OAuth token pre-warmed and cached.');
+    }
+  } catch (e) {}
+}
 
 // Route 1: Trigger M-Pesa STK Push
 app.post('/api/stkpush', getAccessToken, async (req, res) => {
@@ -102,11 +133,11 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
     if (phone.startsWith('+')) phone = phone.slice(1);
 
     const timestamp = getNairobiTimestamp();
-    const shortcode = (process.env.MPESA_SHORTCODE || '174379').trim();
-    const passkey = (process.env.MPESA_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919').trim();
+    const shortcode = (process.env.MPESA_SHORTCODE || '').trim();
+    const passkey = (process.env.MPESA_PASSKEY || '').trim();
     const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString('base64');
 
-    const transactionType = (process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline').trim();
+    const transactionType = (process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline').trim();
     const partyB = (process.env.MPESA_PARTY_B || shortcode).trim();
 
     const stkPayload = {
@@ -119,37 +150,33 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
       PartyB: partyB,
       PhoneNumber: phone,
       CallBackURL: (process.env.MPESA_CALLBACK_URL || '').trim(),
-      AccountReference: (plan || 'StarlinkData').slice(0, 12), // Max 12 chars allowed by Safaricom
-      TransactionDesc: `Starlink ${plan || 'Data'}`.slice(0, 13) // Max 13 chars allowed by Safaricom
+      AccountReference: (plan || 'StarlinkData').slice(0, 12),
+      TransactionDesc: `Starlink ${plan || 'Data'}`.slice(0, 13)
     };
 
     const stkUrl = `${baseUrl}/mpesa/stkpush/v1/processrequest`;
     const response = await fetch(stkUrl, {
       method: 'POST',
+      agent: httpsAgent,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': `Bearer ${req.accessToken}`,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       body: JSON.stringify(stkPayload)
     });
 
-    const rawText = await response.text();
-    let data = {};
-    try {
-      data = JSON.parse(rawText);
-    } catch (e) {
-      return res.status(502).json({
-        error: `STK Push Firewall/HTML Response (HTTP ${response.status}) at ${stkUrl}`
-      });
-    }
+    const data = await response.json();
 
     if (!response.ok) {
       console.error('STK Push Rejected:', response.status, data);
-      return res.status(response.status).json({
-        error: `STK Error (${response.status}): ${data.errorMessage || data.ResultDesc || JSON.stringify(data)}`
-      });
+      // If token expired unexpectedly, clear cache for next request
+      if (response.status === 401) {
+        cachedToken = null;
+        tokenExpiryTime = 0;
+      }
+      return res.status(response.status).json({ error: data.errorMessage || 'STK Push failed' });
     }
 
     if (data.CheckoutRequestID) {
@@ -162,7 +189,7 @@ app.post('/api/stkpush', getAccessToken, async (req, res) => {
     res.status(200).json(data);
   } catch (error) {
     console.error('STK Push Error:', error.message);
-    res.status(500).json({ error: `Failed to send M-Pesa prompt: ${error.message}` });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -212,6 +239,6 @@ app.get('/api/payment-status/:checkoutRequestId', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${envMode} mode (${baseUrl})`);
+  console.log(`Server running on port ${PORT} in ${envMode} mode`);
+  prewarmToken();
 });
-           
